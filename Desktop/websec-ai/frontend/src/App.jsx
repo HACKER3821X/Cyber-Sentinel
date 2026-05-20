@@ -12,15 +12,51 @@ import {
   LayoutDashboard,
   FileWarning,
   BarChart3,
+  LogOut,
+  User,
+  Lock,
+  Mail,
 } from "lucide-react";
 
 export default function App() {
-  const socket = io("http://localhost:5000");
 
+  // =========================
+  // SOCKET
+  // =========================
+  const [socket, setSocket] = useState(null);
+
+  // =========================
+  // AUTH
+  // =========================
+  const [isLogin, setIsLogin] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  // =========================
+  // DASHBOARD STATES
+  // =========================
   const [logs, setLogs] = useState([]);
   const [page, setPage] = useState("dashboard");
 
-  // Fetch Logs
+  // =========================
+  // CHECK TOKEN
+  // =========================
+  useEffect(() => {
+
+    const token = localStorage.getItem("token");
+
+    if (token) {
+      setIsAuthenticated(true);
+    }
+
+  }, []);
+
+  // =========================
+  // FETCH LOGS
+  // =========================
   const fetchLogs = async () => {
 
     try {
@@ -29,7 +65,7 @@ export default function App() {
         "http://localhost:5000/api/logs"
       );
 
-      setLogs(res.data.reverse());
+      setLogs(res.data.logs || []);
 
     } catch (err) {
 
@@ -39,32 +75,118 @@ export default function App() {
 
   };
 
-  // Auto Refresh
+  // =========================
+  // SOCKET REALTIME
+  // =========================
   useEffect(() => {
 
-  fetchLogs();
+    if (isAuthenticated) {
 
-  socket.on("new_log", (newLog) => {
+      fetchLogs();
 
-    setLogs((prevLogs) => [
+      const newSocket = io("http://localhost:5000");
 
-      newLog,
+      setSocket(newSocket);
 
-      ...prevLogs,
+      newSocket.on("new_log", (newLog) => {
 
-    ]);
+        setLogs((prev) => [
 
-  });
+          newLog,
+          ...prev,
 
-  return () => {
+        ]);
 
-    socket.off("new_log");
+      });
+
+      return () => {
+
+        newSocket.disconnect();
+
+      };
+
+    }
+
+  }, [isAuthenticated]);
+
+  // =========================
+  // LOGIN
+  // =========================
+  const handleLogin = async () => {
+
+    try {
+
+      const res = await axios.post(
+        "http://localhost:5000/api/login",
+        {
+          email,
+          password,
+        }
+      );
+
+      localStorage.setItem(
+        "token",
+        res.data.token
+      );
+
+      setIsAuthenticated(true);
+
+      alert("Login Successful");
+
+    } catch (err) {
+
+      alert("Invalid Credentials");
+
+      console.log(err);
+
+    }
 
   };
 
-}, []);   
+  // =========================
+  // SIGNUP
+  // =========================
+  const handleSignup = async () => {
 
-  // Stats
+    try {
+
+      await axios.post(
+        "http://localhost:5000/api/signup",
+        {
+          name,
+          email,
+          password,
+        }
+      );
+
+      alert("Account Created");
+
+      setIsLogin(true);
+
+    } catch (err) {
+
+      alert("Signup Failed");
+
+      console.log(err);
+
+    }
+
+  };
+
+  // =========================
+  // LOGOUT
+  // =========================
+  const handleLogout = () => {
+
+    localStorage.removeItem("token");
+
+    setIsAuthenticated(false);
+
+  };
+
+  // =========================
+  // STATS
+  // =========================
   const totalRequests = logs.length;
 
   const attackRequests = logs.filter(
@@ -76,26 +198,208 @@ export default function App() {
   ).length;
 
   const blockedIPs = [
+
     ...new Set(
+
       logs
         .filter((log) => log.attack === true)
         .map((log) => log.ip)
+
     ),
+
   ];
 
+  // =========================
+  // AUTH PAGE
+  // =========================
+  if (!isAuthenticated) {
+
+    return (
+
+      <div
+        className="min-h-screen flex items-center justify-center bg-cover bg-center text-white"
+        style={{
+          backgroundImage:
+            "url('https://images.unsplash.com/photo-1516321318423-f06f85e504b3?q=80&w=2070&auto=format&fit=crop')",
+        }}
+      >
+
+        <div className="absolute inset-0 bg-black/70 backdrop-blur-sm"></div>
+
+        <motion.div
+
+          initial={{
+            opacity: 0,
+            y: 40,
+          }}
+
+          animate={{
+            opacity: 1,
+            y: 0,
+          }}
+
+          className="relative z-10 bg-slate-900/80 border border-cyan-500/30 p-10 rounded-3xl w-[420px] shadow-2xl backdrop-blur-xl"
+        >
+
+          <div className="text-center mb-8">
+
+            <div className="flex justify-center mb-5">
+
+              <div className="bg-cyan-500/20 p-5 rounded-3xl shadow-lg shadow-cyan-500/30">
+
+                <Shield
+                  className="text-cyan-400"
+                  size={50}
+                />
+
+              </div>
+
+            </div>
+
+            <h1 className="text-5xl font-bold text-cyan-400">
+              SentinelX
+            </h1>
+
+            <p className="text-slate-400 mt-3">
+              AI Cyber Security Monitoring
+            </p>
+
+          </div>
+
+          {!isLogin && (
+
+            <div className="mb-4">
+
+              <div className="flex items-center gap-3 bg-slate-800/80 px-4 py-4 rounded-2xl border border-slate-700">
+
+                <User size={18} />
+
+                <input
+                  type="text"
+                  placeholder="Full Name"
+                  className="bg-transparent outline-none w-full"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                />
+
+              </div>
+
+            </div>
+
+          )}
+
+          <div className="mb-4">
+
+            <div className="flex items-center gap-3 bg-slate-800/80 px-4 py-4 rounded-2xl border border-slate-700">
+
+              <Mail size={18} />
+
+              <input
+                type="email"
+                placeholder="Email Address"
+                className="bg-transparent outline-none w-full"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+
+            </div>
+
+          </div>
+
+          <div className="mb-6">
+
+            <div className="flex items-center gap-3 bg-slate-800/80 px-4 py-4 rounded-2xl border border-slate-700">
+
+              <Lock size={18} />
+
+              <input
+                type="password"
+                placeholder="Password"
+                className="bg-transparent outline-none w-full"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+
+            </div>
+
+          </div>
+
+          <motion.button
+
+            whileHover={{
+              scale: 1.04,
+            }}
+
+            whileTap={{
+              scale: 0.97,
+            }}
+
+            onClick={
+              isLogin
+                ? handleLogin
+                : handleSignup
+            }
+
+            className="w-full bg-cyan-500 hover:bg-cyan-400 transition-all py-4 rounded-2xl font-bold text-lg shadow-lg shadow-cyan-500/30"
+          >
+
+            {isLogin ? "LOGIN" : "CREATE ACCOUNT"}
+
+          </motion.button>
+
+          <div className="text-center mt-6">
+
+            <button
+
+              onClick={() =>
+                setIsLogin(!isLogin)
+              }
+
+              className="text-cyan-400 hover:underline"
+            >
+
+              {isLogin
+                ? "Create New Account"
+                : "Already Have Account? Login"}
+
+            </button>
+
+          </div>
+
+        </motion.div>
+
+      </div>
+
+    );
+
+  }
+
+  // =========================
+  // DASHBOARD
+  // =========================
   return (
 
-    <div className="flex flex-col md:flex-row min-h-screen bg-slate-950 text-white">
+    <div
+      className="flex min-h-screen text-white bg-cover bg-center"
+      style={{
+        backgroundImage:
+          "url('https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?q=80&w=2070&auto=format&fit=crop')",
+      }}
+    >
 
-      {/* Sidebar */}
-      <div className="w-full md:w-72 bg-slate-900 border-r border-slate-800 p-6">
+      <div className="absolute inset-0 bg-black/80 backdrop-blur-sm"></div>
 
-        {/* Logo */}
+      {/* SIDEBAR */}
+      <div className="relative z-10 w-72 bg-slate-900/70 border-r border-cyan-500/20 p-6 backdrop-blur-xl">
+
         <div className="flex items-center gap-4 mb-12">
 
-          <div className="bg-cyan-500/20 p-3 rounded-2xl">
+          <div className="bg-cyan-500/20 p-4 rounded-3xl shadow-lg shadow-cyan-500/30">
 
-            <Shield className="text-cyan-400" size={36} />
+            <Shield
+              className="text-cyan-400"
+              size={36}
+            />
 
           </div>
 
@@ -106,121 +410,86 @@ export default function App() {
             </h1>
 
             <p className="text-slate-400 text-sm">
-              AI Security Platform
+              SOC Dashboard
             </p>
 
           </div>
 
         </div>
 
-        {/* Navigation */}
         <div className="space-y-4">
 
-          {/* Dashboard */}
+          {[
+            {
+              name: "dashboard",
+              icon: <LayoutDashboard size={20} />,
+              label: "Dashboard",
+            },
+            {
+              name: "logs",
+              icon: <FileWarning size={20} />,
+              label: "Threat Logs",
+            },
+            {
+              name: "analytics",
+              icon: <BarChart3 size={20} />,
+              label: "Analytics",
+            },
+            {
+              name: "blocked",
+              icon: <Ban size={20} />,
+              label: "Blocked IPs",
+            },
+          ].map((item, index) => (
+
+            <motion.button
+
+              key={index}
+
+              whileHover={{
+                scale: 1.05,
+                x: 5,
+              }}
+
+              whileTap={{
+                scale: 0.95,
+              }}
+
+              onClick={() => setPage(item.name)}
+
+              className={`w-full flex items-center gap-3 px-5 py-4 rounded-2xl transition-all duration-300 ${
+                page === item.name
+                  ? "bg-cyan-500/20 border border-cyan-400 text-cyan-400 shadow-lg shadow-cyan-500/30"
+                  : "bg-slate-800/50 hover:bg-slate-700/60"
+              }`}
+            >
+
+              {item.icon}
+
+              {item.label}
+
+            </motion.button>
+
+          ))}
+
           <motion.button
 
             whileHover={{
-              scale: 1.03,
-              x: 5,
+              scale: 1.05,
             }}
 
             whileTap={{
-              scale: 0.97,
+              scale: 0.95,
             }}
 
-            onClick={() => setPage("dashboard")}
+            onClick={handleLogout}
 
-            className={`w-full flex items-center gap-3 px-5 py-4 rounded-2xl transition-all duration-300 border ${
-              page === "dashboard"
-                ? "bg-cyan-500/20 text-cyan-400 border-cyan-400 shadow-lg shadow-cyan-500/20"
-                : "hover:bg-slate-800 border-transparent"
-            }`}
+            className="w-full flex items-center gap-3 px-5 py-4 rounded-2xl bg-red-500 hover:bg-red-600 mt-10"
           >
 
-            <LayoutDashboard size={22} />
+            <LogOut size={20} />
 
-            Dashboard
-
-          </motion.button>
-
-          {/* Logs */}
-          <motion.button
-
-            whileHover={{
-              scale: 1.03,
-              x: 5,
-            }}
-
-            whileTap={{
-              scale: 0.97,
-            }}
-
-            onClick={() => setPage("logs")}
-
-            className={`w-full flex items-center gap-3 px-5 py-4 rounded-2xl transition-all duration-300 border ${
-              page === "logs"
-                ? "bg-cyan-500/20 text-cyan-400 border-cyan-400 shadow-lg shadow-cyan-500/20"
-                : "hover:bg-slate-800 border-transparent"
-            }`}
-          >
-
-            <FileWarning size={22} />
-
-            Threat Logs
-
-          </motion.button>
-
-          {/* Analytics */}
-          <motion.button
-
-            whileHover={{
-              scale: 1.03,
-              x: 5,
-            }}
-
-            whileTap={{
-              scale: 0.97,
-            }}
-
-            onClick={() => setPage("analytics")}
-
-            className={`w-full flex items-center gap-3 px-5 py-4 rounded-2xl transition-all duration-300 border ${
-              page === "analytics"
-                ? "bg-cyan-500/20 text-cyan-400 border-cyan-400 shadow-lg shadow-cyan-500/20"
-                : "hover:bg-slate-800 border-transparent"
-            }`}
-          >
-
-            <BarChart3 size={22} />
-
-            Analytics
-
-          </motion.button>
-
-          {/* Blocked */}
-          <motion.button
-
-            whileHover={{
-              scale: 1.03,
-              x: 5,
-            }}
-
-            whileTap={{
-              scale: 0.97,
-            }}
-
-            onClick={() => setPage("blocked")}
-
-            className={`w-full flex items-center gap-3 px-5 py-4 rounded-2xl transition-all duration-300 border ${
-              page === "blocked"
-                ? "bg-cyan-500/20 text-cyan-400 border-cyan-400 shadow-lg shadow-cyan-500/20"
-                : "hover:bg-slate-800 border-transparent"
-            }`}
-          >
-
-            <Ban size={22} />
-
-            Blocked IPs
+            Logout
 
           </motion.button>
 
@@ -228,36 +497,19 @@ export default function App() {
 
       </div>
 
-      {/* Main Content */}
-      <motion.div
+      {/* MAIN */}
+      <div className="relative z-10 flex-1 p-8">
 
-        initial={{
-          opacity: 0,
-          y: 10,
-        }}
-
-        animate={{
-          opacity: 1,
-          y: 0,
-        }}
-
-        transition={{
-          duration: 0.4,
-        }}
-
-        className="flex-1 p-6"
-      >
-
-        {/* Topbar */}
-        <div className="flex items-center justify-between bg-slate-900 border border-slate-800 rounded-3xl px-8 py-5 mb-10">
+        {/* TOPBAR */}
+        <div className="flex items-center justify-between mb-10">
 
           <div>
 
-            <h1 className="text-3xl font-bold">
-              SentinelX SOC Dashboard
+            <h1 className="text-5xl font-bold">
+              SentinelX Dashboard
             </h1>
 
-            <p className="text-slate-400 mt-1">
+            <p className="text-slate-400 mt-2">
               Real-Time AI Threat Monitoring
             </p>
 
@@ -267,271 +519,174 @@ export default function App() {
 
             <div className="h-3 w-3 bg-green-400 rounded-full animate-pulse"></div>
 
-            <span className="text-green-400 font-medium">
-              System Active
+            <span className="text-green-400 font-semibold">
+              SYSTEM ACTIVE
             </span>
 
           </div>
 
         </div>
 
-        {/* Dashboard */}
-        {page === "dashboard" && (
+        {/* STATS */}
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-10">
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
+          {[
+            {
+              title: "Total Requests",
+              value: totalRequests,
+              color: "cyan",
+              icon: <Activity size={35} />,
+            },
+            {
+              title: "Attack Requests",
+              value: attackRequests,
+              color: "red",
+              icon: <AlertTriangle size={35} />,
+            },
+            {
+              title: "Safe Requests",
+              value: safeRequests,
+              color: "green",
+              icon: <Shield size={35} />,
+            },
+            {
+              title: "Blocked IPs",
+              value: blockedIPs.length,
+              color: "orange",
+              icon: <Ban size={35} />,
+            },
+          ].map((card, index) => (
 
-            {/* Total */}
             <motion.div
 
+              key={index}
+
               whileHover={{
-                scale: 1.03,
-                y: -5,
+                scale: 1.05,
+                y: -10,
               }}
 
-              className="bg-gradient-to-br from-cyan-500 to-blue-600 rounded-3xl p-6 shadow-2xl"
+              transition={{
+                type: "spring",
+                stiffness: 300,
+              }}
+
+              className={`rounded-3xl p-6 border backdrop-blur-xl shadow-2xl
+              ${
+                card.color === "cyan"
+                  ? "bg-cyan-500/10 border-cyan-400/30 shadow-cyan-500/20"
+                  : card.color === "red"
+                  ? "bg-red-500/10 border-red-400/30 shadow-red-500/20"
+                  : card.color === "green"
+                  ? "bg-green-500/10 border-green-400/30 shadow-green-500/20"
+                  : "bg-orange-500/10 border-orange-400/30 shadow-orange-500/20"
+              }`}
             >
 
               <div className="flex items-center justify-between">
 
                 <div>
 
-                  <p className="text-white/80">
-                    Total Requests
+                  <p className="text-slate-300">
+                    {card.title}
                   </p>
 
-                  <h2 className="text-5xl font-bold mt-4">
-                    {totalRequests}
-                  </h2>
+                  <h1 className="text-5xl font-bold mt-5">
+                    {card.value}
+                  </h1>
 
                 </div>
 
-                <Activity size={45} />
+                {card.icon}
 
               </div>
 
             </motion.div>
 
-            {/* Attacks */}
-            <motion.div
+          ))}
 
-              whileHover={{
-                scale: 1.03,
-                y: -5,
-              }}
+        </div>
 
-              className="bg-gradient-to-br from-red-500 to-pink-600 rounded-3xl p-6 shadow-2xl"
-            >
-
-              <div className="flex items-center justify-between">
-
-                <div>
-
-                  <p className="text-white/80">
-                    Attack Requests
-                  </p>
-
-                  <h2 className="text-5xl font-bold mt-4">
-                    {attackRequests}
-                  </h2>
-
-                </div>
-
-                <AlertTriangle size={45} />
-
-              </div>
-
-            </motion.div>
-
-            {/* Blocked */}
-            <motion.div
-
-              whileHover={{
-                scale: 1.03,
-                y: -5,
-              }}
-
-              className="bg-gradient-to-br from-orange-500 to-yellow-500 rounded-3xl p-6 shadow-2xl"
-            >
-
-              <div className="flex items-center justify-between">
-
-                <div>
-
-                  <p className="text-white/80">
-                    Blocked IPs
-                  </p>
-
-                  <h2 className="text-5xl font-bold mt-4">
-                    {blockedIPs.length}
-                  </h2>
-
-                </div>
-
-                <Ban size={45} />
-
-              </div>
-
-            </motion.div>
-
-            {/* Safe */}
-            <motion.div
-
-              whileHover={{
-                scale: 1.03,
-                y: -5,
-              }}
-
-              className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-3xl p-6 shadow-2xl"
-            >
-
-              <div className="flex items-center justify-between">
-
-                <div>
-
-                  <p className="text-white/80">
-                    Safe Requests
-                  </p>
-
-                  <h2 className="text-5xl font-bold mt-4">
-                    {safeRequests}
-                  </h2>
-
-                </div>
-
-                <Shield size={45} />
-
-              </div>
-
-            </motion.div>
-
-          </div>
-
-        )}
-
-        {/* Logs */}
+        {/* THREAT LOGS */}
         {page === "logs" && (
 
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl">
+          <div className="bg-slate-900/70 border border-cyan-500/20 rounded-3xl p-6 backdrop-blur-xl">
 
-            <h2 className="text-3xl font-bold text-cyan-400 mb-8">
+            <h2 className="text-3xl font-bold text-cyan-400 mb-6">
               Live Threat Logs
             </h2>
 
             <div className="overflow-x-auto">
-<table className="w-full text-left">
 
-  <thead>
+              <table className="w-full">
 
-    <tr className="border-b border-slate-700 text-slate-400">
+                <thead>
 
-      <th className="pb-4">IP Address</th>
+                  <tr className="text-left border-b border-slate-700 text-slate-400">
 
-      <th className="pb-4">URL</th>
+                    <th className="pb-4">IP</th>
+                    <th className="pb-4">URL</th>
+                    <th className="pb-4">Status</th>
+                    <th className="pb-4">Type</th>
+                    <th className="pb-4">Severity</th>
+                    <th className="pb-4">Country</th>
 
-      <th className="pb-4">Status</th>
+                  </tr>
 
-      <th className="pb-4">Attack Type</th>
+                </thead>
 
-      <th className="pb-4">Severity</th>
+                <tbody>
 
-      <th className="pb-4">Country</th>
+                  {logs.map((log, index) => (
 
-      <th className="pb-4">Time</th>
+                    <tr
+                      key={index}
+                      className="border-b border-slate-800 hover:bg-slate-800/30 transition"
+                    >
 
-    </tr>
+                      <td className="py-4">
+                        {log.ip}
+                      </td>
 
-  </thead>
+                      <td className="py-4">
+                        {log.url}
+                      </td>
 
-  <tbody>
+                      <td className="py-4">
 
-    {logs.map((log, index) => (
+                        <span
+                          className={`px-3 py-1 rounded-full text-sm ${
+                            log.attack
+                              ? "bg-red-500/20 text-red-400"
+                              : "bg-green-500/20 text-green-400"
+                          }`}
+                        >
 
-      <tr
-        key={index}
-        className="border-b border-slate-800 hover:bg-slate-800/30 transition"
-      >
+                          {log.attack ? "Attack" : "Safe"}
 
-        <td className="py-4">
+                        </span>
 
-          {log.ip}
+                      </td>
 
-        </td>
+                      <td className="py-4">
+                        {log.attack_type}
+                      </td>
 
-        <td className="py-4">
+                      <td className="py-4">
+                        {log.severity}
+                      </td>
 
-          {log.url}
+                      <td className="py-4">
+                        {log.country}
+                      </td>
 
-        </td>
+                    </tr>
 
-        <td className="py-4">
+                  ))}
 
-          <span
-            className={`px-3 py-1 rounded-full text-sm font-semibold ${
-              log.attack
-                ? "bg-red-500/20 text-red-400"
-                : "bg-green-500/20 text-green-400"
-            }`}
-          >
+                </tbody>
 
-            {log.attack ? "Attack" : "Safe"}
-
-          </span>
-
-        </td>
-
-        <td className="py-4">
-
-          <span className="text-cyan-400">
-
-            {log.attack_type || "Normal Traffic"}
-
-          </span>
-
-        </td>
-
-        <td className="py-4">
-
-          <span
-            className={`px-3 py-1 rounded-full text-sm font-bold ${
-              log.severity === "CRITICAL"
-                ? "bg-red-500/20 text-red-400"
-                : log.severity === "HIGH"
-                ? "bg-orange-500/20 text-orange-400"
-                : log.severity === "MEDIUM"
-                ? "bg-yellow-500/20 text-yellow-400"
-                : "bg-green-500/20 text-green-400"
-            }`}
-          >
-
-            {log.severity || "SAFE"}
-
-          </span>
-
-        </td>
-
-        <td className="py-4">
-
-          <span className="text-cyan-400">
-
-            {log.country || "Unknown"}
-
-          </span>
-
-        </td>
-
-        <td className="py-4 text-slate-400">
-
-          {log.time}
-
-        </td>
-
-      </tr>
-
-    ))}
-
-  </tbody>
-
-</table>              
+              </table>
 
             </div>
 
@@ -539,109 +694,11 @@ export default function App() {
 
         )}
 
-        {/* Analytics */}
-        {page === "analytics" && (
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8">
-
-              <h2 className="text-2xl font-bold text-cyan-400 mb-4">
-                Threat Analytics
-              </h2>
-
-              <p className="text-slate-400">
-                AI detected malicious traffic.
-              </p>
-
-              <h1 className="text-7xl font-bold text-red-400 mt-8">
-                {attackRequests}
-              </h1>
-
-            </div>
-
-            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8">
-
-              <h2 className="text-2xl font-bold text-cyan-400 mb-4">
-                Safe Traffic
-              </h2>
-
-              <p className="text-slate-400">
-                Legitimate requests processed.
-              </p>
-
-              <h1 className="text-7xl font-bold text-green-400 mt-8">
-                {safeRequests}
-              </h1>
-
-            </div>
-
-          </div>
-
-        )}
-
-        {/* Blocked IPs */}
-        {page === "blocked" && (
-
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl">
-
-            <h2 className="text-3xl font-bold text-orange-400 mb-8">
-              Blocked IP Addresses
-            </h2>
-
-            <div className="space-y-4">
-
-              {blockedIPs.length === 0 && (
-
-                <div className="text-slate-500">
-                  No blocked IPs yet
-                </div>
-
-              )}
-
-              {blockedIPs.map((ip, index) => (
-
-                <motion.div
-
-                  whileHover={{
-                    scale: 1.02,
-                  }}
-
-                  key={index}
-
-                  className="bg-slate-800 px-6 py-5 rounded-2xl flex items-center justify-between"
-                >
-
-                  <span className="font-medium">
-                    {ip}
-                  </span>
-
-                  <span className="bg-red-500/20 text-red-400 px-3 py-1 rounded-full text-sm">
-                    BLOCKED
-                  </span>
-
-                </motion.div>
-
-              ))}
-
-            </div>
-
-          </div>
-
-        )}
-
-        {/* Footer */}
-        <div className="mt-12 flex items-center gap-2 text-slate-500 text-sm">
-
-          <Globe size={16} />
-
-           AI Security Monitoring System
-
-        </div>
-
-      </motion.div>
+      </div>
 
     </div>
 
   );
+
 }
+```
