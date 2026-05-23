@@ -604,14 +604,15 @@ className={`transfrom-gpu w-full flex items-center gap-3 px-5 py-4 rounded-2xl t
       </div>
 
       {/* MAIN */}
-   <div className="relative z-10 flex-1 p-4 sm:p-6 lg:p-8 mt-20 lg:mt-0 overflow-auto">
+<div className="relative z-10 flex-1 p-4 sm:p-6 lg:p-8 mt-20 lg:mt-0 overflow-auto">
 
   <div className="absolute top-20 left-20 w-72 h-72 bg-cyan-500/10 rounded-full blur-[120px] animate-pulse"></div>
 
   <div className="absolute bottom-20 right-20 w-72 h-72 bg-blue-500/10 rounded-full blur-[120px] animate-pulse"></div>
 
-</div>
-	{/* TOPBAR */}
+
+
+{/* TOPBAR */}
         <div className="flex items-center justify-between mb-10">
 
           <div>
@@ -757,7 +758,6 @@ className={`transform-gpu rounded-3xl p-6 border backdrop-blur-xl shadow-2xl ${
 
        {/* THREAT LOGS */}
 
-<motion.div>
         {page === "logs" && (
 
         <div className="transform-gpu bg-slate-900/70 border border-cyan-400/20 rounded-3xl p-6 backdrop-blur-2xl shadow-[0_0_40px_rgba(6,182,212,0.15)]">
@@ -961,10 +961,11 @@ className={`transform-gpu rounded-3xl p-6 border backdrop-blur-xl shadow-2xl ${
 )}
 
 {/* BAR CHART */}
+{page === "analytics" && (
 
-    <div className="bg-slate-900/70 border border-cyan-500/20 rounded-3xl p-6 backdrop-blur-xl">
+<div className="bg-slate-900/70 border border-cyan-500/20 rounded-3xl p-6 backdrop-blur-xl mt-6">   
 
-      <h2 className="text-2xl font-bold text-cyan-400 mb-6">
+	<h2 className="text-2xl font-bold text-cyan-400 mb-6">
         Threat Severity
       </h2>
 
@@ -994,15 +995,15 @@ className={`transform-gpu rounded-3xl p-6 border backdrop-blur-xl shadow-2xl ${
 
       </div>
 
+
     </div>
 
-	<motion.div>
-
-</motion.div>	
 </motion.div>
-	</div>
 
-  );
+</div>
+
+</div>
+
+);
 
 }
-
