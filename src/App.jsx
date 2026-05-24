@@ -10,7 +10,6 @@ import {
   Activity,
   AlertTriangle,
   Ban,
-  Globe,
   LayoutDashboard,
   FileWarning,
   BarChart3,
@@ -300,7 +299,7 @@ const COLORS = [
             y: 0,
           }}
 
-          className="transform-gputransform-gpu relative z-10  bg-slate-900/80 border border-cyan-500/30 p-6 sm:p-10 rounded-3xl w-[95%] max-w-[420px] shadow-2xl backdrop-blur-xl"
+          className="transform-gpu  relative z-10  bg-slate-900/80 border border-cyan-500/30 p-6 sm:p-10 rounded-3xl w-[95%] max-w-[420px] shadow-2xl backdrop-blur-xl"
 	    >
 
           <div className="text-center mb-8">
@@ -563,7 +562,7 @@ whileHover={{
 }}
            
 
-className={`transfrom-gpu w-full flex items-center gap-3 px-5 py-4 rounded-2xl transition-all duration-300 ${
+className={`transform-gpu w-full flex items-center gap-3 px-5 py-4 rounded-2xl transition-all duration-300 ${
                 page === item.name
                   ? "bg-cyan-500/20 border border-cyan-400 text-cyan-400 shadow-lg shadow-cyan-500/30"
                   : "bg-slate-800/50 hover:bg-slate-700/60"
@@ -639,22 +638,26 @@ className={`transfrom-gpu w-full flex items-center gap-3 px-5 py-4 rounded-2xl t
 
         </div>
 
+
+
 <motion.div
   key={page}
+
   initial={{
     opacity: 0,
     y: 20,
   }}
+
   animate={{
     opacity: 1,
     y: 0,
   }}
+
   transition={{
     duration: 0.4,
   }}
 >
-
-        {/* STATS */}
+	{/* STATS */}
     <div className="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-4 gap-4 sm:gap-6 mb-10">
 
   {[
@@ -718,11 +721,8 @@ className={`transform-gpu rounded-3xl p-6 border backdrop-blur-xl shadow-2xl ${
           </p>
 
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold mt-5">
-           <CountUp
-  end={card.value}
-  duration={2}
-/>
-
+           
+{card.value}
 	  </h1>
 
         </div>
@@ -736,27 +736,7 @@ className={`transform-gpu rounded-3xl p-6 border backdrop-blur-xl shadow-2xl ${
   ))}
 
 </div>
-
-<motion.div
-  key={page}
-
-  initial={{
-    opacity: 0,
-    y: 20,
-  }}
-
-  animate={{
-    opacity: 1,
-    y: 0,
-  }}
-
-  transition={{
-    duration: 0.4,
-  }}
->
-
-
-       {/* THREAT LOGS */}
+	{/* THREAT LOGS */}
 
         {page === "logs" && (
 
@@ -998,12 +978,12 @@ className={`transform-gpu rounded-3xl p-6 border backdrop-blur-xl shadow-2xl ${
 
     </div>
 
-</motion.div>
+)}
 
 </div>
 
 </div>
 
-);
+  );
 
 }
