@@ -279,11 +279,8 @@ const COLORS = [
 
       <div
         className="min-h-screen flex items-center justify-center bg-cover bg-center text-white"
-        style={{
-          backgroundImage:
-            "url('https://images.unsplash.com/photo-1510511459019-5dda7724fd87?q=80&w=2070&auto=format&fit=crop')",   
-	}}
-      >
+       className="min-h-screen bg-[#020817] text-white overflow-hidden"   
+	    >
 
         <div className="absolute inset-0 bg-black/70 backdrop-blur-sm"></div>
 
@@ -439,33 +436,26 @@ whileHover={{
   // =========================
   // DASHBOARD
   // =========================
-  return (
+ return (
 
 <div
-  className="flex flex-col lg:flex-row min-h-screen text-white bg-cover bg-center overflow-hidden"
+  className="
+    min-h-screen
+    flex
+    bg-[#050816]
+    text-white
+    overflow-hidden
+    relative
+  "
+>   
+{/* BACKGROUND GLOW */}
+<div className="absolute inset-0 overflow-hidden">
 
-	  style={{
-        backgroundImage:
-          "url('https://images.unsplash.com/photo-1510511459019-5dda7724fd87?q=80&w=2070&auto=format&fit=crop')",
-      }}
-    >
+  <div className="absolute top-[-200px] left-[-200px] w-[500px] h-[500px] bg-cyan-500/10 rounded-full blur-[140px]" />
 
-     <div className="absolute inset-0 bg-black/75 backdrop-blur-sm"></div>
+  <div className="absolute bottom-[-200px] right-[-200px] w-[500px] h-[500px] bg-blue-500/10 rounded-full blur-[140px]" />
 
-<div className="absolute inset-0 opacity-[0.08]">
-
-  <div
-    className="w-full h-full"
-    style={{
-      backgroundImage: `
-        linear-gradient(rgba(0,255,255,0.15) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(0,255,255,0.15) 1px, transparent 1px)
-      `,
-      backgroundSize: "40px 40px",
-    }}
-  />
-
-</div>
+</div>	 
 	  {/* MOBILE TOPBAR */}
 
 <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-slate-900/90 backdrop-blur-xl border-b border-cyan-500/20 p-4 flex items-center justify-between">
