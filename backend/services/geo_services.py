@@ -1,32 +1,28 @@
-# services/geo_service.py
-
 import requests
 
 def get_location(ip):
-
-    if ip in ["127.0.0.1", "::1"] or ip.startswith("192.168"):
+    if ip in ["127.0.0.1", "::1"] or ip.startswith("192.168.") or ip.startswith("10."):
         return {
-            "country": "India",
-            "city": "Indore",
-            "lat": 22.7196,
-            "lon": 75.8577,
-            "isp": "Localhost"
+            "country": "Local",
+            "city": "Localhost",
+            "lat": 0,
+            "lon": 0,
+            "isp": "Local Network"
         }
 
     try:
-        response = requests.get(
-            f"http://ip-api.com/json/{ip}"
-        ).json()
+        res = requests.get(f"http://ip-api.com/json/{ip}", timeout=3)
+        data = res.json()
 
         return {
-            "country": response.get("country", "Unknown"),
-            "city": response.get("city", "Unknown"),
-            "lat": response.get("lat", 0),
-            "lon": response.get("lon", 0),
-            "isp": response.get("isp", "Unknown")
+            "country": data.get("country", "Unknown"),
+            "city": data.get("city", "Unknown"),
+            "lat": data.get("lat", 0),
+            "lon": data.get("lon", 0),
+            "isp": data.get("isp", "Unknown")
         }
 
-    except:
+    except Exception:
         return {
             "country": "Unknown",
             "city": "Unknown",

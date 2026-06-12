@@ -1,3 +1,115 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  body {
+    font-family: 'Share Tech Mono', monospace;
+    background-color: #000;
+  }
+}
+
+/* Custom Cyber Fonts */
+.font-orbitron {
+  font-family: 'Orbitron', sans-serif;
+}
+.font-cyber {
+  font-family: 'Share Tech Mono', monospace;
+}
+
+/* Scanlines overlay */
+.scanlines {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    rgba(18, 16, 16, 0) 50%,
+    rgba(0, 0, 0, 0.15) 50%
+  );
+  background-size: 100% 4px;
+  z-index: 9999;
+  pointer-events: none;
+}
+
+/* Cyber grid background */
+.cyber-grid {
+  background-image: 
+    linear-gradient(rgba(6, 182, 212, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(6, 182, 212, 0.05) 1px, transparent 1px);
+  background-size: 30px 30px;
+}
+
+/* Futuristic custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.8);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(6, 182, 212, 0.4);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(6, 182, 212, 0.8);
+  box-shadow: 0 0 10px rgba(6, 182, 212, 0.8);
+}
+
+/* Cyber Clipped Panel Shape */
+.cyber-panel {
+  clip-path: polygon(
+    0px 0px, 
+    calc(100% - 15px) 0px, 
+    100% 15px, 
+    100% 100%, 
+    15px 100%, 
+    0px calc(100% - 15px)
+  );
+}
+
+/* Glow effects */
+.glow-cyan {
+  box-shadow: 0 0 15px rgba(6, 182, 212, 0.3);
+}
+.glow-red {
+  box-shadow: 0 0 15px rgba(239, 68, 68, 0.3);
+}
+.glow-green {
+  box-shadow: 0 0 15px rgba(34, 197, 94, 0.3);
+}
+
+/* Custom glow animations */
+@keyframes cyber-pulse {
+  0%, 100% {
+    opacity: 0.8;
+    box-shadow: 0 0 10px rgba(6, 182, 212, 0.2);
+  }
+  50% {
+    opacity: 1;
+    box-shadow: 0 0 20px rgba(6, 182, 212, 0.5);
+  }
+}
+
+.animate-cyber-pulse {
+  animation: cyber-pulse 2s infinite;
+}
+
+@keyframes text-flicker {
+  0%, 100% { opacity: 0.95; }
+  25% { opacity: 1; }
+  50% { opacity: 0.85; }
+  75% { opacity: 1; }
+}
+
+.animate-text-flicker {
+  animation: text-flicker 4s infinite;
+}
+
+/* Glitch style styling for HUD headers */
+.cyber-hud-title {
+  text-shadow: 0 0 8px rgba(6, 182, 212, 0.8);
+  letter-spacing: 0.05em;
+}

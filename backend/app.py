@@ -1,102 +1,69 @@
+from flask import Flask, request, render_template, jsonify
 from flask_cors import CORS
-from flask import jsonify
-from flask import Flask, request, render_template
 from pymongo import MongoClient
 from flask_socketio import SocketIO
-import requests
 import redis
 import pickle
 import datetime
-import re
-from services.geo_service import get_location
+import bcrypt
+import jwt
+from urllib.parse import unquote
+from services.geo_services import get_location
 
-# =========================
-# FLASK APP
-# =========================
 app = Flask(__name__)
-socketio = SocketIO(app, cors_allowed_origins="*")
 CORS(app)
+socketio = SocketIO(app, cors_allowed_origins="*")
 
-# =========================
-# MONGODB CONNECTION
-# =========================
+# MongoDB
 client = MongoClient("mongodb://localhost:27017/")
 db = client["security"]
 collection = db["logs"]
+users_collection = db["users"]
+SECRET_KEY = "sentinelx_secret_key"
 
-# =========================
-# REDIS CONNECTION
-# =========================
-r = redis.Redis(host="localhost", port=6379, decode_responses=True)
 
-# =========================
-# LOAD AI MODEL
-# =========================
-with open("model.pkl", "rb") as file:
-    vectorizer, model = pickle.load(file)
-# =========================
-# FEATURE EXTRACTION
-# =========================
-def features(data):
+# Redis optional
+try:
+    r = redis.Redis(host="localhost", port=6379, decode_responses=True)
+    r.ping()
+    print("[INFO] Redis connected")
+except Exception:
+    r = None
+    print("[WARN] Redis not running - IP blocking disabled")
 
-    suspicious = [
-        "<script>",
-        "select",
-        "union",
-        "drop",
-        "alert",
-        "--",
-        "or 1=1",
-        "../",
-        "cmd",
-        "wget",
-        "curl",
-        "onerror",
-        "javascript:",
-        "document.cookie"
-    ]
+# Load AI model
+try:
+    with open("model.pkl", "rb") as file:
+        vectorizer, model = pickle.load(file)
+    print("[INFO] AI model loaded")
+except Exception as e:
+    vectorizer = None
+    model = None
+    print("[WARN] AI model not loaded:", e)
 
-    score = 0
-
-    data = data.lower()
-
-    for word in suspicious:
-        if word in data:
-            score += 1
-
-    return [score]
-
-# =========================
-# REMOVE YOUR PERSONAL BLOCKED IP
-# =========================
-r.delete("block:127.0.0.1", "block:192.168.254.129")
-
-# =========================
-# SECURITY ENGINE
-# ========================
 
 def classify_attack(data):
-
     data = data.lower()
 
-    # SQL Injection
     sql_patterns = [
         "or 1=1",
-        "'--",
         "union select",
         "drop table",
         "information_schema",
+        "select * from",
+        "' or 1=1 --",
+        "admin'--",
+        "admin' or '1'='1",
     ]
 
-    # XSS
     xss_patterns = [
         "<script>",
         "alert(",
         "onerror=",
         "javascript:",
+        "document.cookie",
     ]
 
-    # Path Traversal
     path_patterns = [
         "../",
         "..\\",
@@ -104,178 +71,285 @@ def classify_attack(data):
         "boot.ini",
     ]
 
-    # Command Injection
     cmd_patterns = [
         "; ls",
         "; cat",
         "&&",
         "| whoami",
         "cmd.exe",
+        "powershell",
+        "wget",
+        "curl",
     ]
 
-    # Scanner/Bot
     scanner_patterns = [
         "sqlmap",
         "nmap",
         "nikto",
         "acunetix",
+        "burpsuite",
     ]
 
-    # SQLi
     for pattern in sql_patterns:
-
         if pattern in data:
-
             return "SQL Injection", "CRITICAL"
 
-    # XSS
     for pattern in xss_patterns:
-
         if pattern in data:
-
             return "XSS Attack", "HIGH"
 
-    # Path Traversal
     for pattern in path_patterns:
-
         if pattern in data:
-
             return "Path Traversal", "HIGH"
 
-    # Command Injection
     for pattern in cmd_patterns:
-
         if pattern in data:
-
             return "Command Injection", "CRITICAL"
 
-    # Scanner
     for pattern in scanner_patterns:
-
         if pattern in data:
-
             return "Scanner/Bot Activity", "MEDIUM"
 
+
+# AI fallback detection
+    if vectorizer is not None and model is not None:
+        try:
+            transformed_data = vectorizer.transform([data])
+            # If no vocabulary words are present in the request, default to safe (0)
+            if transformed_data.sum() == 0:
+                prediction = 0
+            else:
+                prediction = model.predict(transformed_data)[0]
+
+            if prediction == 1 or prediction == "attack":
+                return "Suspicious Traffic (AI Flagged)", "HIGH"
+
+        except Exception as e:
+            print("AI prediction error:", e)
+        
+        
     return "Normal Traffic", "SAFE"
 
-
 @app.before_request
-
 def security():
+    ip = request.remote_addr or "Unknown"
 
-    ip = request.remote_addr
-
-    # Skip frontend/static
-    if request.path.startswith("/static"):
+    # Skip routes that should not be scanned
+    if request.path == "/":
         return None
 
     if request.path.startswith("/api"):
         return None
 
-    # Skip localhost blocking
-    if ip == "127.0.0.1":
-        pass
+    if request.path.startswith("/static"):
+        return None
 
-    # Check blocked IP
-    if r.get(f"block:{ip}"):
+    if request.path.startswith("/socket.io"):
+        return None
 
+    if request.path == "/favicon.ico":
+        return None
+
+    # Check blocked IP only if Redis is available
+    if r and r.get(f"block:{ip}"):
         return "🚫 Your IP is Blocked", 403
 
-    # Request data
-    data = request.full_path.lower()
+    data = unquote(request.full_path.lower())
 
-    location = get_location(ip)   
+    location = get_location(ip)
 
     attack_type, severity = classify_attack(data)
+    attack_detected = attack_type != "Normal Traffic"
 
-    # Mark attack true/false
-    is_attack = attack_type != "Normal Traffic"
-
-    # Attack patterns
-    attacks = [
-        "<script>",
-        "alert(",
-        "' or 1=1",
-        "../",
-        "union select",
-        "drop table",
-        "--",
-    ]
-
-    attack_detected = False
-
-    for pattern in attacks:
-
-        if pattern in data:
-
-            attack_detected = True
-            break
-
-    # Save logs
     log = {
-        "country": location["country"],
-        "city": location["city"],
-        "isp": location["isp"],
-        "lat": location["lat"],
-        "lon": location["lon"],
+        "country": location.get("country", "Unknown"),
+        "city": location.get("city", "Unknown"),
+        "isp": location.get("isp", "Unknown"),
+        "lat": location.get("lat", 0),
+        "lon": location.get("lon", 0),
         "time": str(datetime.datetime.now()),
         "ip": ip,
         "url": request.url,
         "data": data,
         "attack": attack_detected,
         "attack_type": attack_type,
-        "severity": severity
+        "severity": severity,
     }
 
     inserted = collection.insert_one(log)
-
     log["_id"] = str(inserted.inserted_id)
 
-    socketio.emit("new_log", log)    
+    socketio.emit("new_log", log)
 
-    # Block attack IP
     if attack_detected:
-
-        r.set(f"block:{ip}", "1", ex=300)
+        if r:
+            redis_key = f"block:{ip}"
+            r.set(redis_key, attack_type, ex=20)
+            print("BLOCKED IP SAVED:", redis_key, "TTL:", r.ttl(redis_key))
+        else:
+            print("REDIS NOT AVAILABLE - IP NOT BLOCKED")
 
         return "🚨 Attack Detected", 403
 
-
-@app.route("/api/logs")
-def get_logs():
-
-    logs = list(collection.find({}, {"_id": 0}))
-
-    logs.reverse()
-
-    return jsonify(logs)
+    return None
 
 
 @app.route("/")
 def home():
-
-    return {
+    return jsonify({
         "status": "running",
         "message": "SentinelX Backend Active"
-    }
-    
-@app.route("/dashboard")
-def dashboard():
+    })
 
+
+@app.route("/api/logs")
+def get_logs():
+    logs = list(collection.find({}, {"_id": 0}))
+    logs.reverse()
+
+    return jsonify({
+        "logs": logs,
+        "total": len(logs)
+    })
+    
+@app.route("/api/stats")
+def get_stats():
     logs = list(collection.find({}, {"_id": 0}))
 
+    total = len(logs)
+    attacks = sum(1 for log in logs if log.get("attack") == True)
+    safe = total - attacks
+
+    critical = sum(1 for log in logs if log.get("severity") == "CRITICAL")
+    high = sum(1 for log in logs if log.get("severity") == "HIGH")
+    medium = sum(1 for log in logs if log.get("severity") == "MEDIUM")
+
+    unique_ips = len(set(log.get("ip") for log in logs if log.get("ip")))
+
+    return jsonify({
+        "total": total,
+        "attacks": attacks,
+        "safe": safe,
+        "critical": critical,
+        "high": high,
+        "medium": medium,
+        "unique_ips": unique_ips
+    })
+
+
+@app.route("/api/blocked-ips")
+def get_blocked_ips():
+    blocked = []
+
+    if not r:
+        return jsonify({
+            "blocked": [],
+            "total": 0,
+            "redis": "not connected"
+        })
+
+    keys = r.keys("block:*")
+    print("REDIS BLOCK KEYS:", keys)
+
+    for key in keys:
+        blocked.append({
+            "ip": key.replace("block:", ""),
+            "reason": r.get(key),
+            "ttl": r.ttl(key)
+        })
+
+    return jsonify({
+        "blocked": blocked,
+        "total": len(blocked),
+        "redis": "connected"
+    })
+    
+    
+@app.route("/api/signup", methods=["POST"])
+def signup():
+    data = request.json
+
+    name = data.get("name")
+    email = data.get("email")
+    password = data.get("password")
+
+    if not name or not email or not password:
+        return jsonify({"message": "All fields are required"}), 400
+
+    existing_user = users_collection.find_one({"email": email})
+
+    if existing_user:
+        return jsonify({"message": "User already exists"}), 409
+
+    hashed_password = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt())
+
+    users_collection.insert_one({
+        "name": name,
+        "email": email,
+        "password": hashed_password,
+        "created_at": str(datetime.datetime.now())
+    })
+
+    return jsonify({"message": "Account created successfully"}), 201
+
+
+@app.route("/api/login", methods=["POST"])
+def login():
+    data = request.json
+
+    email = data.get("email")
+    password = data.get("password")
+
+    if not email or not password:
+        return jsonify({"message": "Email and password are required"}), 400
+
+    user = users_collection.find_one({"email": email})
+
+    if not user:
+        return jsonify({"message": "Invalid email or password"}), 401
+
+    if not bcrypt.checkpw(password.encode("utf-8"), user["password"]):
+        return jsonify({"message": "Invalid email or password"}), 401
+
+    token = jwt.encode({
+        "email": email,
+        "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=24)
+    }, SECRET_KEY, algorithm="HS256")
+
+    return jsonify({
+        "message": "Login successful",
+        "token": token,
+        "user": {
+            "name": user["name"],
+            "email": user["email"]
+        }
+    }), 200    
+    
+    
+@app.route("/api/users")
+def get_users():
+    users = list(users_collection.find({}, {"password": 0}))
+
+    for user in users:
+        user["_id"] = str(user["_id"])
+
+    return jsonify(users)
+
+
+@app.route("/dashboard")
+def dashboard():
+    logs = list(collection.find({}, {"_id": 0}))
     logs.reverse()
 
     total = len(logs)
-
-    attacks = sum(1 for log in logs if log["attack"])
-
+    attacks = sum(1 for log in logs if log.get("attack"))
     safe = total - attacks
 
     blocked = []
 
-    for key in r.keys("block:*"):
-        blocked.append(key.replace("block:", ""))
+    if r:
+        for key in r.keys("block:*"):
+            blocked.append(key.replace("block:", ""))
 
     return render_template(
         "dashboard.html",
@@ -286,13 +360,11 @@ def dashboard():
         blocked=blocked
     )
 
-# =========================
-# RUN SERVER
-# =========================
+
 if __name__ == "__main__":
-   socketio.run(
-    app,
-    host="0.0.0.0",
-    port=5000,
-    debug=True
-)
+    socketio.run(
+        app,
+        host="0.0.0.0",
+        port=5000,
+        debug=True
+    )
