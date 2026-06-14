@@ -16,7 +16,7 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 
 # MongoDB
 client = MongoClient("mongodb://localhost:27017/")
-db = client["security"]
+db = client["SentinelAI"]
 collection = db["logs"]
 users_collection = db["users"]
 SECRET_KEY = "sentinelx_secret_key"
